@@ -1,0 +1,25 @@
+## .NET build results
+bin/
+obj/
+out/
+
+## Visual Studio / Rider files
+.vs/
+.idea/
+*.user
+*.suo
+
+## Rider/VS Code
+.vscode/
+
+## Test results
+[Tt]est[Rr]esult*/
+*.trx
+
+## NuGet
+*.nupkg
+**/packages/*
+
+## OS
+.DS_Store
+Thumbs.db
