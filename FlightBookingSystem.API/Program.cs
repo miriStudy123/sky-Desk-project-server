@@ -5,7 +5,6 @@ using FlightBookingSystem.Core.Interfaces.Security;
 using FlightBookingSystem.Core.Interfaces.Services;
 using FlightBookingSystem.Data;
 using FlightBookingSystem.Data.Seed;
-using FlightBookingSystem.Services;
 using FlightBookingSystem.Services.Security;
 using FlightBookingSystem.Services.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -13,10 +12,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NLog;
 using NLog.Web;
-using System;
 using System.Text;
 using System.Text.Json.Serialization;
-
 
 const string ClientAppCorsPolicy = "ClientApp";
 
@@ -51,7 +48,6 @@ try
 
     // --- Application layers ---
     builder.Services.AddDataLayer(builder.Configuration);
-   
 
     // --- Authentication / Authorization ---
     var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
@@ -87,6 +83,7 @@ try
     builder.Services.AddScoped<ISeatService, SeatService>();
     builder.Services.AddScoped<IBookingService, BookingService>();
     builder.Services.AddScoped<IAircraftService, AircraftService>();
+
     var app = builder.Build();
 
     // --- Pipeline ---
@@ -128,8 +125,6 @@ finally
 {
     LogManager.Shutdown();
 }
-
-return;
 
 static void ConfigureSwagger(Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions options)
 {

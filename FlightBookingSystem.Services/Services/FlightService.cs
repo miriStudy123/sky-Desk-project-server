@@ -58,29 +58,18 @@ public class FlightService : IFlightService
 
     public async Task<FlightResponse> CreateAsync(CreateFlightRequest request, CancellationToken cancellationToken = default)
     {
-        ValidateSchedule(request.DepartureTime, request.ArrivalTime);
-
-        if (await _flights.FlightNumberExistsAsync(request.FlightNumber, null, cancellationToken))
-            throw new BusinessRuleException($"Flight number '{request.FlightNumber}' is already in use.");
+        await ValidateAsync(request, null, cancellationToken);
 
         var aircraft = await _aircraft.GetWithSeatsAsync(request.AircraftId, cancellationToken)
             ?? throw new NotFoundException(nameof(Aircraft), request.AircraftId);
 
-        var flight = new Flight
-        {
-            FlightNumber = request.FlightNumber.Trim(),
-            Origin = request.Origin.Trim(),
-            Destination = request.Destination.Trim(),
-            DepartureTime = request.DepartureTime,
-            ArrivalTime = request.ArrivalTime,
-            AircraftId = aircraft.Id
-        };
+        var flight = new Flight { AircraftId = aircraft.Id };
 
         // Materialize one bookable FlightSeat per physical seat on the aircraft.
         foreach (var seat in aircraft.Seats)
             flight.FlightSeats.Add(new FlightSeat { SeatId = seat.Id, Status = SeatStatus.Available });
 
-        await ApplyTagsAsync(flight, request.Tags, cancellationToken);
+        await ApplyDetailsAsync(flight, request, cancellationToken);
 
         await _flights.AddAsync(flight, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -92,24 +81,12 @@ public class FlightService : IFlightService
 
     public async Task<FlightResponse> UpdateAsync(int id, UpdateFlightRequest request, CancellationToken cancellationToken = default)
     {
-        ValidateSchedule(request.DepartureTime, request.ArrivalTime);
+        await ValidateAsync(request, id, cancellationToken);
 
         var flight = await _flights.GetTrackedWithTagsAsync(id, cancellationToken)
             ?? throw new NotFoundException(nameof(Flight), id);
 
-        if (await _flights.FlightNumberExistsAsync(request.FlightNumber, id, cancellationToken))
-            throw new BusinessRuleException($"Flight number '{request.FlightNumber}' is already in use.");
-
-        flight.FlightNumber = request.FlightNumber.Trim();
-        flight.Origin = request.Origin.Trim();
-        flight.Destination = request.Destination.Trim();
-        flight.DepartureTime = request.DepartureTime;
-        flight.ArrivalTime = request.ArrivalTime;
-
-        flight.FlightTags.Clear();
-        await ApplyTagsAsync(flight, request.Tags, cancellationToken);
-
-        _flights.Update(flight);
+        await ApplyDetailsAsync(flight, request, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Flight updated. FlightId={FlightId}", flight.Id);
@@ -125,25 +102,37 @@ public class FlightService : IFlightService
         if (await _flights.HasConfirmedBookingsAsync(id, cancellationToken))
             throw new BusinessRuleException("The flight has confirmed bookings and cannot be deleted.");
 
+        await _flights.RemoveCancelledBookingsAsync(id, cancellationToken);
         _flights.Remove(flight);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Flight deleted. FlightId={FlightId}", id);
     }
 
-    private static void ValidateSchedule(DateTime departure, DateTime arrival)
+    private async Task ValidateAsync(UpdateFlightRequest request, int? excludingFlightId, CancellationToken cancellationToken)
     {
-        if (arrival <= departure)
+        if (request.ArrivalTime <= request.DepartureTime)
             throw new BusinessRuleException("Arrival time must be after departure time.");
+
+        if (await _flights.FlightNumberExistsAsync(request.FlightNumber, excludingFlightId, cancellationToken))
+            throw new BusinessRuleException($"Flight number '{request.FlightNumber}' is already in use.");
     }
 
-    private async Task ApplyTagsAsync(Flight flight, IEnumerable<string> tagNames, CancellationToken cancellationToken)
+    /// <summary>Copies the editable fields (shared by create and update) onto the flight and replaces its tags.</summary>
+    private async Task ApplyDetailsAsync(Flight flight, UpdateFlightRequest request, CancellationToken cancellationToken)
     {
-        var names = tagNames?.Where(n => !string.IsNullOrWhiteSpace(n)).ToList() ?? new List<string>();
-        if (names.Count == 0)
+        flight.FlightNumber = request.FlightNumber.Trim();
+        flight.Origin = request.Origin.Trim();
+        flight.Destination = request.Destination.Trim();
+        flight.DepartureTime = request.DepartureTime;
+        flight.ArrivalTime = request.ArrivalTime;
+
+        flight.FlightTags.Clear();
+        if (request.Tags is not { Count: > 0 })
             return;
 
-        var tags = await _flights.GetOrCreateTagsAsync(names, cancellationToken);
+        // GetOrCreateTagsAsync trims, drops blanks and de-duplicates the names.
+        var tags = await _flights.GetOrCreateTagsAsync(request.Tags, cancellationToken);
         foreach (var tag in tags.Values)
             flight.FlightTags.Add(new FlightTag { Tag = tag });
     }

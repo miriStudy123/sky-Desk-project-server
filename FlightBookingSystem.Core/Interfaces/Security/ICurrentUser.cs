@@ -7,11 +7,7 @@ namespace FlightBookingSystem.Core.Interfaces.Security;
 /// </summary>
 public interface ICurrentUser
 {
-    bool IsAuthenticated { get; }
-
     int UserId { get; }
-
-    string? Email { get; }
 
     bool IsAdmin { get; }
 }

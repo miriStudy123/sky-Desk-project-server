@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using FlightBookingSystem.Core.Enums;
 
 namespace FlightBookingSystem.Core.Entities;
@@ -9,6 +8,8 @@ namespace FlightBookingSystem.Core.Entities;
 /// <see cref="FlightSeat"/> while it is <see cref="SeatStatus.Available"/> and try to book it
 /// concurrently, but only one write may win. The losing write triggers a
 /// <c>DbUpdateConcurrencyException</c> which the service layer translates into HTTP 409.
+/// The concurrency token itself (PostgreSQL's <c>xmin</c> system column) is configured as a
+/// shadow property in <c>FlightSeatConfiguration</c>, so it has no CLR property here.
 /// </summary>
 public class FlightSeat
 {
@@ -21,13 +22,6 @@ public class FlightSeat
     public Seat Seat { get; set; } = null!;
 
     public SeatStatus Status { get; set; } = SeatStatus.Available;
-
-    /// <summary>
-    /// SQL Server <c>rowversion</c> concurrency token. EF Core adds it to the WHERE clause of every
-    /// UPDATE/DELETE; a stale value produces zero affected rows and a <c>DbUpdateConcurrencyException</c>.
-    /// </summary>
-    [Timestamp]
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     // Navigation - FlightSeat 1:N Booking
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

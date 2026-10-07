@@ -12,18 +12,8 @@ public class AircraftConfiguration : IEntityTypeConfiguration<Aircraft>
         builder.HasKey(a => a.Id);
 
         builder.Property(a => a.Model).IsRequired().HasMaxLength(100);
-        builder.Property(a => a.TotalSeats).IsRequired();
 
-        // Aircraft 1:N Seat
-        builder.HasMany(a => a.Seats)
-            .WithOne(s => s.Aircraft)
-            .HasForeignKey(s => s.AircraftId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        // Aircraft 1:N Flight
-        builder.HasMany(a => a.Flights)
-            .WithOne(f => f.Aircraft)
-            .HasForeignKey(f => f.AircraftId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // Relationships are configured on the dependent side: Seat -> Aircraft in SeatConfiguration,
+        // Flight -> Aircraft in FlightConfiguration.
     }
 }

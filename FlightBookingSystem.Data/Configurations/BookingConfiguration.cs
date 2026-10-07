@@ -14,14 +14,12 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.Reference).IsRequired().HasMaxLength(12);
         builder.HasIndex(b => b.Reference).IsUnique();
 
-        builder.Property(b => b.BookingDate).IsRequired();
         builder.Property(b => b.Status)
             .IsRequired()
             .HasConversion<string>()
             .HasMaxLength(20);
 
-        builder.HasIndex(b => b.UserId);
-        builder.HasIndex(b => b.FlightSeatId);
+        // EF creates an index for each foreign key below (UserId, FlightSeatId) by convention.
 
         // Many-to-one: Booking -> User
         builder.HasOne(b => b.User)

@@ -14,8 +14,6 @@ public class FlightConfiguration : IEntityTypeConfiguration<Flight>
         builder.Property(f => f.FlightNumber).IsRequired().HasMaxLength(10);
         builder.Property(f => f.Origin).IsRequired().HasMaxLength(100);
         builder.Property(f => f.Destination).IsRequired().HasMaxLength(100);
-        builder.Property(f => f.DepartureTime).IsRequired();
-        builder.Property(f => f.ArrivalTime).IsRequired();
 
         builder.HasIndex(f => f.FlightNumber);
         builder.HasIndex(f => new { f.Origin, f.Destination, f.DepartureTime });

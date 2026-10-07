@@ -46,10 +46,11 @@ public class BookingService : IBookingService
         var flightSeat = await _flightSeats.GetTrackedForBookingAsync(request.FlightSeatId, cancellationToken)
             ?? throw new NotFoundException(nameof(FlightSeat), request.FlightSeatId);
 
-        if (flightSeat.Flight.DepartureTime - DateTime.UtcNow <= CutoffBeforeDeparture)
+        if (IsPastCutoff(flightSeat.Flight))
             throw new BusinessRuleException("This flight is too close to departure to accept new bookings.");
 
-        if (flightSeat.Status != SeatStatus.Available)
+        if (flightSeat.Status != SeatStatus.Available
+            || await _bookings.ActiveBookingExistsForSeatAsync(flightSeat.Id, cancellationToken))
         {
             _logger.LogWarning(
                 "Booking rejected - seat not available. FlightSeatId={FlightSeatId} Status={Status} UserId={UserId}",
@@ -57,12 +58,8 @@ public class BookingService : IBookingService
             throw new ConflictException("The selected seat is no longer available. Please choose another seat.");
         }
 
-        if (await _bookings.ActiveBookingExistsForSeatAsync(flightSeat.Id, cancellationToken))
-            throw new ConflictException("The selected seat is no longer available. Please choose another seat.");
-
         // Atomic unit: flip the status and insert the booking, then let the concurrency token arbitrate.
         flightSeat.Status = SeatStatus.Booked;
-        _flightSeats.Update(flightSeat);
 
         var booking = new Booking
         {
@@ -103,32 +100,20 @@ public class BookingService : IBookingService
     }
 
     public async Task<BookingResponse> GetByIdAsync(int userId, bool isAdmin, int bookingId, CancellationToken cancellationToken = default)
-    {
-        var booking = await _bookings.GetWithDetailsAsync(bookingId, cancellationToken)
-            ?? throw new NotFoundException(nameof(Booking), bookingId);
-
-        EnsureCanAccess(booking, userId, isAdmin);
-        return _mapper.Map<BookingResponse>(booking);
-    }
+        => _mapper.Map<BookingResponse>(await GetAccessibleAsync(userId, isAdmin, bookingId, cancellationToken));
 
     public async Task CancelAsync(int userId, bool isAdmin, int bookingId, CancellationToken cancellationToken = default)
     {
-        var booking = await _bookings.GetWithDetailsAsync(bookingId, cancellationToken)
-            ?? throw new NotFoundException(nameof(Booking), bookingId);
-
-        EnsureCanAccess(booking, userId, isAdmin);
+        var booking = await GetAccessibleAsync(userId, isAdmin, bookingId, cancellationToken);
 
         if (booking.Status == BookingStatus.Cancelled)
             throw new BusinessRuleException("The booking is already cancelled.");
 
-        if (!isAdmin && booking.FlightSeat.Flight.DepartureTime - DateTime.UtcNow <= CutoffBeforeDeparture)
+        if (!isAdmin && IsPastCutoff(booking.FlightSeat.Flight))
             throw new BusinessRuleException("The flight is too close to departure to cancel this booking.");
 
         booking.Status = BookingStatus.Cancelled;
         booking.FlightSeat.Status = SeatStatus.Available;
-
-        _bookings.Update(booking);
-        _flightSeats.Update(booking.FlightSeat);
 
         try
         {
@@ -153,9 +138,18 @@ public class BookingService : IBookingService
         });
     }
 
-    private static void EnsureCanAccess(Booking booking, int userId, bool isAdmin)
+    private static bool IsPastCutoff(Flight flight)
+        => flight.DepartureTime - DateTime.UtcNow <= CutoffBeforeDeparture;
+
+    /// <summary>Loads a booking (tracked, with details) and ensures the caller owns it or is an admin.</summary>
+    private async Task<Booking> GetAccessibleAsync(int userId, bool isAdmin, int bookingId, CancellationToken cancellationToken)
     {
+        var booking = await _bookings.GetWithDetailsAsync(bookingId, cancellationToken)
+            ?? throw new NotFoundException(nameof(Booking), bookingId);
+
         if (!isAdmin && booking.UserId != userId)
             throw new UnauthorizedException("You are not allowed to access this booking.", isForbidden: true);
+
+        return booking;
     }
 }

@@ -11,10 +11,9 @@ public class SeatConfiguration : IEntityTypeConfiguration<Seat>
         builder.ToTable("Seats");
         builder.HasKey(s => s.Id);
 
-        builder.Property(s => s.RowNumber).IsRequired();
         builder.Property(s => s.SeatLetter).IsRequired().HasMaxLength(2);
 
-        // Many-to-one: Seat -> Aircraft (configured from the Aircraft side as well)
+        // Many-to-one: Seat -> Aircraft
         builder.HasOne(s => s.Aircraft)
             .WithMany(a => a.Seats)
             .HasForeignKey(s => s.AircraftId)

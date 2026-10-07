@@ -1,5 +1,4 @@
 using FlightBookingSystem.Core.Entities;
-using FlightBookingSystem.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,10 +16,11 @@ public class FlightSeatConfiguration : IEntityTypeConfiguration<FlightSeat>
             .HasConversion<string>()
             .HasMaxLength(20);
 
-        // Optimistic concurrency token - SQL Server rowversion.
+        // Optimistic concurrency token - PostgreSQL's xmin system column, exposed as a shadow
+        // property (Npgsql maps a uint property named "xmin" to it automatically).
         // Every UPDATE/DELETE carries the loaded value in its WHERE clause; a stale value
         // affects zero rows and EF raises DbUpdateConcurrencyException.
-        builder.Property(fs => fs.RowVersion)
+        builder.Property<uint>("xmin")
             .IsRowVersion();
 
         builder.HasIndex(fs => new { fs.FlightId, fs.SeatId }).IsUnique();
@@ -32,10 +32,6 @@ public class FlightSeatConfiguration : IEntityTypeConfiguration<FlightSeat>
             .HasForeignKey(fs => fs.SeatId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // FlightSeat 1:N Booking
-        builder.HasMany(fs => fs.Bookings)
-            .WithOne(b => b.FlightSeat)
-            .HasForeignKey(b => b.FlightSeatId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // FlightSeat 1:N Booking is configured on the dependent side, in BookingConfiguration.
     }
 }

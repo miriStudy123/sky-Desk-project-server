@@ -1,3 +1,4 @@
+using FlightBookingSystem.Core.DTOs.Common;
 using FlightBookingSystem.Core.Interfaces.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +29,17 @@ public class Repository<T> : IRepository<T> where T : class
     public virtual async Task AddAsync(T entity, CancellationToken cancellationToken = default)
         => await Set.AddAsync(entity, cancellationToken);
 
-    public virtual void Update(T entity) => Set.Update(entity);
-
     public virtual void Remove(T entity) => Set.Remove(entity);
+
+    /// <summary>
+    /// Real database-side pagination: counts the matching rows, then applies Skip/Take in SQL so only
+    /// one page is materialized.
+    /// </summary>
+    protected static async Task<PagedResult<T>> ToPagedResultAsync(
+        IOrderedQueryable<T> query, PaginationQuery paging, CancellationToken cancellationToken)
+    {
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query.Skip(paging.Skip).Take(paging.Take).ToListAsync(cancellationToken);
+        return new PagedResult<T>(items, totalCount, paging.Page, paging.PageSize);
+    }
 }

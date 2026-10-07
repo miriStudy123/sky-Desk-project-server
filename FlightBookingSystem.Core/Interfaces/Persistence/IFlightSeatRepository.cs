@@ -8,7 +8,7 @@ public interface IFlightSeatRepository : IRepository<FlightSeat>
     Task<IReadOnlyList<FlightSeat>> GetByFlightAsync(int flightId, bool onlyAvailable, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads a single <see cref="FlightSeat"/> as a tracked entity (including its <c>RowVersion</c>)
+    /// Loads a single <see cref="FlightSeat"/> as a tracked entity (including its concurrency token)
     /// so the booking flow can update it under optimistic concurrency.
     /// </summary>
     Task<FlightSeat?> GetTrackedForBookingAsync(int flightSeatId, CancellationToken cancellationToken = default);

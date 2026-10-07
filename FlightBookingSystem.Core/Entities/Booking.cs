@@ -10,9 +10,9 @@ public class Booking
     public int Id { get; set; }
 
     /// <summary>Short human-friendly confirmation code, unique across all bookings.</summary>
-    public string Reference { get; set; } = null!;//קוד אישור הזמנה
+    public string Reference { get; set; } = null!;
 
-    public int UserId { get; set; }//id שהזמין
+    public int UserId { get; set; }
     public User User { get; set; } = null!;
 
     public int FlightSeatId { get; set; }

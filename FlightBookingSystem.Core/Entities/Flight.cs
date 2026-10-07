@@ -22,6 +22,5 @@ public class Flight
 
     public ICollection<FlightSeat> FlightSeats { get; set; } = new List<FlightSeat>();
 
-    
     public ICollection<FlightTag> FlightTags { get; set; } = new List<FlightTag>();
 }

@@ -8,7 +8,7 @@ using FlightBookingSystem.Core.Interfaces.Persistence;
 using FlightBookingSystem.Core.Interfaces.Security;
 using FlightBookingSystem.Core.Interfaces.Services;
 using Microsoft.Extensions.Logging;
-using BCrypt.Net;
+
 namespace FlightBookingSystem.Services.Services;
 
 public class AuthService : IAuthService

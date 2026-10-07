@@ -12,29 +12,22 @@ public class BookingRepository : Repository<Booking>, IBookingRepository
     {
     }
 
-    public async Task<PagedResult<Booking>> GetForUserAsync(
+    /// <summary>Bookings with the seat and flight details a <c>BookingResponse</c> needs (tracked).</summary>
+    private IQueryable<Booking> WithDetails()
+        => Set.Include(b => b.FlightSeat).ThenInclude(fs => fs.Seat)
+              .Include(b => b.FlightSeat).ThenInclude(fs => fs.Flight);
+
+    public Task<PagedResult<Booking>> GetForUserAsync(
         int userId, PaginationQuery query, CancellationToken cancellationToken = default)
-    {
-        var baseQuery = Set.AsNoTracking().Where(b => b.UserId == userId);
-
-        var totalCount = await baseQuery.CountAsync(cancellationToken);
-
-        var items = await baseQuery
-            .Include(b => b.FlightSeat).ThenInclude(fs => fs.Seat)
-            .Include(b => b.FlightSeat).ThenInclude(fs => fs.Flight)
-            .OrderByDescending(b => b.BookingDate)
-            .ThenByDescending(b => b.Id)
-            .Skip(query.Skip)
-            .Take(query.Take)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<Booking>(items, totalCount, query.Page, query.PageSize);
-    }
+        => ToPagedResultAsync(
+            WithDetails().AsNoTracking()
+                .Where(b => b.UserId == userId)
+                .OrderByDescending(b => b.BookingDate)
+                .ThenByDescending(b => b.Id),
+            query, cancellationToken);
 
     public Task<Booking?> GetWithDetailsAsync(int bookingId, CancellationToken cancellationToken = default)
-        => Set.Include(b => b.FlightSeat).ThenInclude(fs => fs.Seat)
-              .Include(b => b.FlightSeat).ThenInclude(fs => fs.Flight)
-              .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken);
+        => WithDetails().FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken);
 
     public Task<bool> ActiveBookingExistsForSeatAsync(int flightSeatId, CancellationToken cancellationToken = default)
         => Set.AsNoTracking()

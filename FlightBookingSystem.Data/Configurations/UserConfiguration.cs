@@ -18,10 +18,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(u => u.Email).IsUnique();
 
-        // User 1:N Booking
-        builder.HasMany(u => u.Bookings)
-            .WithOne(b => b.User)
-            .HasForeignKey(b => b.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // User 1:N Booking is configured on the dependent side, in BookingConfiguration.
     }
 }

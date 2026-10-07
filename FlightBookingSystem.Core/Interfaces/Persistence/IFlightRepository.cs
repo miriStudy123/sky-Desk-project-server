@@ -21,6 +21,12 @@ public interface IFlightRepository : IRepository<Flight>
 
     Task<bool> HasConfirmedBookingsAsync(int flightId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Marks the flight's cancelled bookings for deletion (committed by the next save). They would otherwise
+    /// block deleting the flight, since its seats cascade-delete but a booking restricts deleting its seat.
+    /// </summary>
+    Task RemoveCancelledBookingsAsync(int flightId, CancellationToken cancellationToken = default);
+
     Task<bool> FlightNumberExistsAsync(string flightNumber, int? excludingFlightId, CancellationToken cancellationToken = default);
 
     Task<Dictionary<string, Tag>> GetOrCreateTagsAsync(IEnumerable<string> names, CancellationToken cancellationToken = default);

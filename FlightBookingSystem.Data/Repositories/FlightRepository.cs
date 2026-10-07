@@ -13,11 +13,15 @@ public class FlightRepository : Repository<Flight>, IFlightRepository
     {
     }
 
-    public async Task<PagedResult<Flight>> SearchAsync(FlightSearchQuery query, CancellationToken cancellationToken = default)
+    /// <summary>Read-only flights with their aircraft and tags - everything a <c>FlightResponse</c> needs.</summary>
+    private IQueryable<Flight> WithDetails()
+        => Set.AsNoTracking()
+              .Include(f => f.Aircraft)
+              .Include(f => f.FlightTags).ThenInclude(ft => ft.Tag);
+
+    public Task<PagedResult<Flight>> SearchAsync(FlightSearchQuery query, CancellationToken cancellationToken = default)
     {
-        IQueryable<Flight> q = Set.AsNoTracking()
-            .Include(f => f.Aircraft)
-            .Include(f => f.FlightTags).ThenInclude(ft => ft.Tag);
+        var q = WithDetails();
 
         if (!string.IsNullOrWhiteSpace(query.Origin))
             q = q.Where(f => f.Origin == query.Origin);
@@ -34,24 +38,11 @@ public class FlightRepository : Repository<Flight>, IFlightRepository
         if (!string.IsNullOrWhiteSpace(query.Tag))
             q = q.Where(f => f.FlightTags.Any(ft => ft.Tag.Name == query.Tag));
 
-        var totalCount = await q.CountAsync(cancellationToken);
-
-        // Real database-side pagination: Skip/Take are translated to SQL OFFSET/FETCH.
-        var items = await q
-            .OrderBy(f => f.DepartureTime)
-            .ThenBy(f => f.Id)
-            .Skip(query.Skip)
-            .Take(query.Take)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<Flight>(items, totalCount, query.Page, query.PageSize);
+        return ToPagedResultAsync(q.OrderBy(f => f.DepartureTime).ThenBy(f => f.Id), query, cancellationToken);
     }
 
     public Task<Flight?> GetWithDetailsAsync(int id, CancellationToken cancellationToken = default)
-        => Set.AsNoTracking()
-              .Include(f => f.Aircraft)
-              .Include(f => f.FlightTags).ThenInclude(ft => ft.Tag)
-              .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+        => WithDetails().FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
     public Task<Flight?> GetTrackedWithTagsAsync(int id, CancellationToken cancellationToken = default)
         => Set.Include(f => f.FlightTags)
@@ -60,6 +51,17 @@ public class FlightRepository : Repository<Flight>, IFlightRepository
     public Task<bool> HasConfirmedBookingsAsync(int flightId, CancellationToken cancellationToken = default)
         => Context.Bookings.AsNoTracking()
               .AnyAsync(b => b.Status == BookingStatus.Confirmed && b.FlightSeat.FlightId == flightId, cancellationToken);
+
+    public async Task RemoveCancelledBookingsAsync(int flightId, CancellationToken cancellationToken = default)
+    {
+        // The seats are loaded (tracked) too, so EF orders the DELETEs booking -> seat -> flight.
+        var bookings = await Context.Bookings
+            .Include(b => b.FlightSeat)
+            .Where(b => b.Status == BookingStatus.Cancelled && b.FlightSeat.FlightId == flightId)
+            .ToListAsync(cancellationToken);
+
+        Context.Bookings.RemoveRange(bookings);
+    }
 
     public Task<bool> FlightNumberExistsAsync(string flightNumber, int? excludingFlightId, CancellationToken cancellationToken = default)
         => Set.AsNoTracking()

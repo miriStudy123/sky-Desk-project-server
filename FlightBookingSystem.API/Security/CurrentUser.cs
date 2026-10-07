@@ -16,8 +16,6 @@ public class CurrentUser : ICurrentUser
 
     private ClaimsPrincipal? Principal => _accessor.HttpContext?.User;
 
-    public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated ?? false;
-
     public int UserId
     {
         get
@@ -29,8 +27,6 @@ public class CurrentUser : ICurrentUser
                 : throw new InvalidOperationException("The current request has no authenticated user id.");
         }
     }
-
-    public string? Email => Principal?.FindFirstValue(ClaimTypes.Email);
 
     public bool IsAdmin => Principal?.IsInRole(Roles.Admin) ?? false;
 }

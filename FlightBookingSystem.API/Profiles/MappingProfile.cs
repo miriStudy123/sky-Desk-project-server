@@ -29,18 +29,16 @@ public class MappingProfile : Profile
         CreateMap<FlightSeat, SeatResponse>()
             .ForMember(d => d.FlightSeatId, o => o.MapFrom(s => s.Id))
             .ForMember(d => d.RowNumber, o => o.MapFrom(s => s.Seat.RowNumber))
-            .ForMember(d => d.SeatLetter, o => o.MapFrom(s => s.Seat.SeatLetter))
-            .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
+            .ForMember(d => d.SeatLetter, o => o.MapFrom(s => s.Seat.SeatLetter));
 
+        // Same-named members (Id, Reference, FlightSeatId, BookingDate) and enum -> string Status map by convention.
         CreateMap<Booking, BookingResponse>()
-            .ForMember(d => d.FlightSeatId, o => o.MapFrom(s => s.FlightSeatId))
             .ForMember(d => d.FlightId, o => o.MapFrom(s => s.FlightSeat.FlightId))
             .ForMember(d => d.FlightNumber, o => o.MapFrom(s => s.FlightSeat.Flight.FlightNumber))
             .ForMember(d => d.Origin, o => o.MapFrom(s => s.FlightSeat.Flight.Origin))
             .ForMember(d => d.Destination, o => o.MapFrom(s => s.FlightSeat.Flight.Destination))
             .ForMember(d => d.DepartureTime, o => o.MapFrom(s => s.FlightSeat.Flight.DepartureTime))
             .ForMember(d => d.RowNumber, o => o.MapFrom(s => s.FlightSeat.Seat.RowNumber))
-            .ForMember(d => d.SeatLetter, o => o.MapFrom(s => s.FlightSeat.Seat.SeatLetter))
-            .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
+            .ForMember(d => d.SeatLetter, o => o.MapFrom(s => s.FlightSeat.Seat.SeatLetter));
     }
 }

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FlightBookingSystem.Data;
 
 /// <summary>
-/// Composition root for the Data layer. Registers the <see cref="AppDbContext"/> (SQL Server),
+/// Composition root for the Data layer. Registers the <see cref="AppDbContext"/> (PostgreSQL),
 /// the repositories, and the unit of work. Called from the API's <c>Program.cs</c>.
 /// </summary>
 public static class DependencyInjection
@@ -20,8 +20,8 @@ public static class DependencyInjection
                 "Set it via User Secrets or environment variables - it must never be committed.");
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(connectionString, sql =>
-                sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+            options.UseNpgsql(connectionString, npgsql =>
+                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserRepository, UserRepository>();
