@@ -30,7 +30,7 @@ try
     // --- CORS: allow the React (Vite) dev server to call this API directly ---
     builder.Services.AddCors(options =>
         options.AddPolicy(ClientAppCorsPolicy, policy =>
-            policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
+            policy.WithOrigins("http://localhost:5173", "https://localhost:5173","https://sky-desk-project-client.onrender.com")
                   .AllowAnyHeader()
                   .AllowAnyMethod()));
 
