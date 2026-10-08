@@ -14,13 +14,17 @@ namespace FlightBookingSystem.Data.Seed;
 public static class DbSeeder
 {
     public const string AdminEmail = "admin@flightbooking.local";
-    public const string AdminPassword = "Admin123!";
     public const string UserEmail = "user@flightbooking.local";
     public const string UserPassword = "User123!";
 
+    /// <param name="adminPassword">
+    /// Password for the seeded admin account, from configuration ("Seed:AdminPassword" in User Secrets or an
+    /// environment variable) so it is never committed. Only needed when the database is empty.
+    /// </param>
     public static async Task SeedAsync(
         AppDbContext context,
         IPasswordHasher passwordHasher,
+        string? adminPassword,
         CancellationToken cancellationToken = default)
     {
         await context.Database.MigrateAsync(cancellationToken);
@@ -28,10 +32,16 @@ public static class DbSeeder
         if (await context.Users.AnyAsync(cancellationToken))
             return;
 
+        if (string.IsNullOrWhiteSpace(adminPassword) || adminPassword.Length < 8)
+            throw new InvalidOperationException(
+                "The database is empty and needs an admin account, but 'Seed:AdminPassword' is missing or shorter " +
+                "than 8 characters. Set it with: dotnet user-secrets set \"Seed:AdminPassword\" \"<password>\" " +
+                "--project FlightBookingSystem.API (or the environment variable Seed__AdminPassword).");
+
         // --- Users ---
         var users = new List<User>
         {
-            new() { Name = "System Admin", Email = AdminEmail, Role = Roles.Admin, PasswordHash = passwordHasher.Hash(AdminPassword) },
+            new() { Name = "System Admin", Email = AdminEmail, Role = Roles.Admin, PasswordHash = passwordHasher.Hash(adminPassword) },
             new() { Name = "Demo User", Email = UserEmail, Role = Roles.User, PasswordHash = passwordHasher.Hash(UserPassword) },
             new() { Name = "Dana Levi", Email = "dana@example.com", Role = Roles.User, PasswordHash = passwordHasher.Hash("Passw0rd!") },
             new() { Name = "Yossi Cohen", Email = "yossi@example.com", Role = Roles.User, PasswordHash = passwordHasher.Hash("Passw0rd!") },

@@ -74,7 +74,7 @@ public class AuthService : IAuthService
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
         {
             _logger.LogInformation("Failed login attempt (wrong password) for email hash {EmailHash}", email.GetHashCode());
-            throw new UnauthorizedException("Incorrect password. Passwords must be at least 6 characters long.");
+            throw new UnauthorizedException("Incorrect password. Please check it and try again.");
         }
 
         _logger.LogInformation("User logged in. UserId={UserId}", user.Id);

@@ -53,6 +53,13 @@ try
     var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
               ?? throw new InvalidOperationException("The 'Jwt' configuration section is missing.");
 
+    // The signing key is a secret: it lives in User Secrets / environment variables, never in appsettings.json.
+    if (string.IsNullOrWhiteSpace(jwt.SecretKey) || jwt.SecretKey.Length < 32)
+        throw new InvalidOperationException(
+            "'Jwt:SecretKey' is missing or shorter than 32 characters. Set it with: " +
+            "dotnet user-secrets set \"Jwt:SecretKey\" \"<long random value>\" --project FlightBookingSystem.API " +
+            "(or the environment variable Jwt__SecretKey outside Development).");
+
     builder.Services
         .AddAuthentication(options =>
         {
@@ -97,7 +104,11 @@ try
         app.UseSwaggerUI();
     }
 
-    app.UseHttpsRedirection();
+    // In development the React client reaches the API through the Vite proxy over plain HTTP.
+    // Redirecting those calls to HTTPS sends the browser to a different origin, and browsers drop the
+    // Authorization header on cross-origin redirects - so every authenticated call came back 401.
+    if (!app.Environment.IsDevelopment())
+        app.UseHttpsRedirection();
 
     app.UseCors(ClientAppCorsPolicy);
 
@@ -159,7 +170,7 @@ static async Task SeedDatabaseAsync(WebApplication app)
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    await DbSeeder.SeedAsync(context, passwordHasher);
+    await DbSeeder.SeedAsync(context, passwordHasher, app.Configuration["Seed:AdminPassword"]);
 }
 
 /// <summary>Exposed so integration tests can reference the composition root.</summary>
